@@ -11,7 +11,6 @@ class UI {
   selected: number;
   userId: string;
   userName: string;
-  messages: string[][];
 
   constructor() {
     // Create a screen object.
@@ -31,7 +30,6 @@ class UI {
     });
     
     this.userName = "909ak";
-    this.messages = [["", `Chat started at ${new Date()}`]];
   }
 
   _addMessage(userName: string, message: string, recvMsgBox: blessed.Widgets.Log) {
