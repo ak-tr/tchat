@@ -1,0 +1,34 @@
+{
+  "name": "tchat",
+  "version": "1.0.0",
+  "description": "��#\u0000 \u0000t\u0000c\u0000h\u0000a\u0000t\u0000\r\u0000 \u0000",
+  "main": "index.js",
+  "scripts": {
+    "start": "tsc && node dist/app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ak-tr/tchat.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ak-tr/tchat/issues"
+  },
+  "homepage": "https://github.com/ak-tr/tchat#readme",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.40.0",
+    "eslint": "^8.25.0",
+    "eslint-config-standard-with-typescript": "^23.0.0",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-n": "^15.3.0",
+    "eslint-plugin-promise": "^6.0.1",
+    "typescript": "^4.8.4"
+  },
+  "dependencies": {
+    "@types/blessed": "^0.1.19",
+    "blessed": "^0.1.81"
+  }
+}
