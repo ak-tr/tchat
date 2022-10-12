@@ -1,6 +1,6 @@
 import { blessed } from "./ui";
 
-export function getCenteredBox(){
+export const getCenteredBox = () => {
   return blessed.box({
     top: "center",
     left: "center",
@@ -18,7 +18,7 @@ export function getCenteredBox(){
   });
 }
 
-export function getLogoBox() {
+export const getLogoBox = () => {
   const logo = [
     "    __       __          __  ",
     "   / /______/ /_  ____ _/ /_ ",
@@ -34,7 +34,7 @@ export function getLogoBox() {
   })
 }
 
-export function getTextBox() {
+export const getTextBox = () => {
   return blessed.textbox({
     bottom: 0,
     width: "100%",
@@ -51,7 +51,7 @@ export function getTextBox() {
   })
 }
 
-export function getLogBox(offset: number, screenRows: number) {
+export const getLogBox = (offset: number, screenRows: number) => {
   return blessed.log({
     top: offset,
     width: "100%",
@@ -63,7 +63,7 @@ export function getLogBox(offset: number, screenRows: number) {
   })
 }
 
-export function getInfoBar(offset: number) {
+export const getInfoBar = (offset: number) => {
   return blessed.box({
     top: 0,
     width: "100%",
