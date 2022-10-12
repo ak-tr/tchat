@@ -1,4 +1,5 @@
-import blessed, { text } from "blessed";
+import blessed from "blessed";
+import * as customWidgets from "./widgets";
 
 enum Selection {
   Google = 0,
@@ -38,112 +39,57 @@ class UI {
   }
 
   _loginScreen() {
-    const logo = [
-      "    __       __          __  ",
-      "   / /______/ /_  ____ _/ /_ ",
-      "  / __/ ___/ __ \/ __ `/ __/ ",
-      " / /_/ /__/ / / / /_/ / /_   ",
-      " \__/\___/_/ /_/\__,_/\__/   ",
-    ]
-    // Create a box perfectly centered horizontally and vertically.
-    const box = blessed.box({
-      parent: this.screen,
-      top: "center",
-      left: "center",
-      width: "shrink",
-      height: "shrink",
-      tags: true,
-      border: {
-        type: "line"
-      },
-      style: {
-        border: {
-          fg: "#f0f0f0"
-        }
-      }
-    });
+    // Get widget elements from exports
+    const logoBox = customWidgets.getLogoBox();
+    const centeredBox = customWidgets.getCenteredBox();
 
-    const logoBox = blessed.text({
-      parent: this.screen,
-      top: "25%",
-      left: "center",
-      content: logo.join("\n"),
-    })
+    centeredBox.setContent(setSelectedLogin(this.selected));
 
-    box.setContent(setSelectedLogin(this.selected));
+    // Add elements to screen
+    const elements = [centeredBox, logoBox];
+    elements.forEach((elem) => this.screen.append(elem));
 
-    const elements = [box, logoBox];
-
-    box.key(["up", "down"], () => {
+    // Add functionality for selecting
+    centeredBox.key(["up", "down"], () => {
       if (this.selected == Selection.Google) {
-        box.setContent(setSelectedLogin(Selection.UserPass));
+        centeredBox.setContent(setSelectedLogin(Selection.UserPass));
         this.selected = Selection.UserPass;
       } else {
-        box.setContent(setSelectedLogin(Selection.Google));
+        centeredBox.setContent(setSelectedLogin(Selection.Google));
         this.selected = Selection.Google;
       }
 
       this.screen.render();
     });
 
-    box.key("enter", () => {
+    centeredBox.key("enter", () => {
       elements.forEach((elem) => this.screen.remove(elem));
       this._chatScreen();
     })
 
     // Focus our element.
-    box.focus();
+    centeredBox.focus();
 
     // Render the screen.
     this.screen.render();
   }
 
   _chatScreen() {
-    const textBox = blessed.textbox({
-      bottom: 0,
-      width: "100%",
-      height: 3,
-      border: {
-        type: "line"
-      },
-      style: {
-        border: {
-          fg: "#f0f0f0"
-        },
-      },
-      valign: "middle",
-    })
-
     const offset = 2;
 
-    const recvMsgBox = blessed.log({
-      top: offset,
-      width: "100%",
-      height: this.screen.rows - offset - 2,
-      border: {
-        type: "line",
-      },
-      tags: true,
-    })
+    const textBox = customWidgets.getTextBox();
+    const recvMsgBox = customWidgets.getLogBox(offset, this.screen.rows);
+    const infoBar = customWidgets.getInfoBar(offset);
 
-    const topBar = blessed.box({
-      top: 0,
-      width: "100%",
-      height: offset + 1,
-      border: {
-        type: "line",
-      },
-      tags: true,
-    })
+    infoBar.setContent(`${new Date().toISOString()}{|}Connected to chat room:`);
 
-    topBar.setContent(`${new Date().toISOString()}{|}Connected to chat room:`);
-
-    const elements = [textBox, recvMsgBox, topBar];
-
+    // Add elements to screen
+    const elements = [textBox, recvMsgBox, infoBar];
     elements.forEach((elem) => this.screen.append(elem));
 
+    // Read text input and add timer to info bar
     this._readInput(textBox, recvMsgBox);
-    this._timer(topBar);
+    this._timer(infoBar);
 
     this.screen.render();
   }
@@ -152,7 +98,7 @@ class UI {
     setInterval(() => {
       topBar.setContent(` ${new Date().toISOString()}{|}Connected to chat room: `);
       this.screen.render();
-    }, 25);
+    }, 100);
   }
 
   _readInput(textBox: blessed.Widgets.TextboxElement, log: blessed.Widgets.Log) {
@@ -185,4 +131,4 @@ const setSelectedLogin = (selection: number) => {
   return (loginContent.map((text, index) => index == selection ? "[*] " + text : "[ ] " + text)).join("\n");
 }
 
-export { UI };
+export { UI, blessed };
