@@ -1,5 +1,20 @@
 import { blessed } from "./ui";
 
+const offset = 2;
+
+export const getLoadingScreen = () => {
+  return blessed.box({
+    top: "center",
+    left: "center",
+    width: "shrink",
+    height: "shrink",
+    tags: true,
+    style: {
+      align: "center",
+    },
+  })
+}
+
 export const getCenteredBox = () => {
   return blessed.box({
     top: "center",
@@ -51,7 +66,7 @@ export const getTextBox = () => {
   })
 }
 
-export const getLogBox = (offset: number, screenRows: number) => {
+export const getLogBox = (screenRows: number) => {
   return blessed.log({
     top: offset,
     width: "100%",
@@ -63,7 +78,7 @@ export const getLogBox = (offset: number, screenRows: number) => {
   })
 }
 
-export const getInfoBar = (offset: number) => {
+export const getInfoBar = () => {
   return blessed.box({
     top: 0,
     width: "100%",
