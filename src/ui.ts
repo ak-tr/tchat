@@ -1,5 +1,6 @@
 import blessed from "blessed";
 import * as customWidgets from "./widgets";
+import * as database from "./db";
 
 enum Selection {
   Google = 0,
@@ -11,6 +12,7 @@ class UI {
   selected: number;
   userId: string;
   userName: string;
+  loadingScreenInstance: blessed.Widgets.BoxElement;
 
   constructor() {
     // Create a screen object.
@@ -29,6 +31,7 @@ class UI {
       return process.exit(0);
     });
     
+    this.userId = "c1kjf89";
     this.userName = "909ak";
   }
 
@@ -62,7 +65,7 @@ class UI {
 
     centeredBox.key("enter", () => {
       elements.forEach((elem) => this.screen.remove(elem));
-      this._chatScreen();
+      this._connectToDatabase().then(() => this._chatScreen());
     })
 
     // Focus our element.
@@ -73,11 +76,9 @@ class UI {
   }
 
   _chatScreen() {
-    const offset = 2;
-
     const textBox = customWidgets.getTextBox();
-    const recvMsgBox = customWidgets.getLogBox(offset, this.screen.rows);
-    const infoBar = customWidgets.getInfoBar(offset);
+    const recvMsgBox = customWidgets.getLogBox(this.screen.rows);
+    const infoBar = customWidgets.getInfoBar();
 
     infoBar.setContent(`${new Date().toISOString()}{|}Connected to chat room:`);
 
@@ -108,17 +109,56 @@ class UI {
 
       // Quit on Escape, q, or Control-C.
       textBox.key(["escape", "C-c"], () => {
+        database.closeDatabase();
         return process.exit(0);
       });
 
-      this._readInput(textBox, log);
+      database.sendMessage("V75CE93", this.userId, value).then(() => {
+        this._readInput(textBox, log);
+      });
     });
   }
 
   start() {
     this._loginScreen();
   }
+
+  _connectToDatabase(): Promise<void>  {
+    return new Promise((resolve, _reject) => {
+      this._addLoadingScreen("Connecting to database...");
+      database.connectToDatabase();
+      this._killLoadingScreen();
+      resolve();
+    })
+  }
+
+  _addLoadingScreen(content: string) {
+    this.loadingScreenInstance = customWidgets.getLoadingScreen();
+
+    const loadSequence = ['⣾','⣽','⣻','⢿','⡿','⣟','⣯','⣷'];
+    let index = 0;
+
+    setInterval(() => {
+      index += 1;
+      this.loadingScreenInstance.setContent(`{center}${content}{/center}\n${loadSequence[index].padStart(content.length / 2)}`);
+      if (index == loadSequence.length - 1) {
+        index = 0;
+      }
+      this.screen.render();
+    }, 100);
+
+    this.screen.append(this.loadingScreenInstance);
+
+    this.screen.render();
+  }
+
+  _killLoadingScreen() {
+    this.screen.remove(this.loadingScreenInstance);
+    this.screen.render()
+  }
 }
+
+
 
 const loginContent = [
   "Sign in with Google",
