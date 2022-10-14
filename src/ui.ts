@@ -2,17 +2,23 @@ import blessed from "blessed";
 import * as customWidgets from "./widgets";
 import * as database from "./db";
 
-enum Selection {
-  Google = 0,
-  UserPass = 1,
+enum LoginSelection {
+  SignIn = 0,
+  SignUp = 1,
 }
 
+enum ChatRoomSelection {
+  Create = 0,
+  Join = 1,
+}
 class UI {
   screen: blessed.Widgets.Screen;
-  selected: number;
+  loginSelected: LoginSelection;
+  chatRoomSelected: ChatRoomSelection;
   userId: string;
   userName: string;
   loadingScreenInstance: blessed.Widgets.BoxElement;
+  chatRoomId: string;
 
   constructor() {
     // Create a screen object.
@@ -24,7 +30,8 @@ class UI {
     });
     
     this.screen.title = "Tchat";
-    this.selected = Selection.Google;
+    this.loginSelected = LoginSelection.SignIn;
+    this.chatRoomSelected = ChatRoomSelection.Create;
 
     // Quit on Escape, q, or Control-C.
     this.screen.key(["escape", "q", "C-c"], () => {
@@ -35,8 +42,8 @@ class UI {
     this.userName = "909ak";
   }
 
-  _addMessage(userName: string, message: string, recvMsgBox: blessed.Widgets.Log) {
-    recvMsgBox.pushLine(`{underline}${userName}:{/} ${message}`);
+  start() {
+    this._loginScreen();
   }
 
   _loginScreen() {
@@ -44,7 +51,7 @@ class UI {
     const logoBox = customWidgets.getLogoBox();
     const centeredBox = customWidgets.getCenteredBox();
 
-    centeredBox.setContent(setSelectedLogin(this.selected));
+    centeredBox.setContent(tickSelected(this.loginSelected, loginContent));
 
     // Add elements to screen
     const elements = [centeredBox, logoBox];
@@ -52,12 +59,12 @@ class UI {
 
     // Add functionality for selecting
     centeredBox.key(["up", "down"], () => {
-      if (this.selected == Selection.Google) {
-        centeredBox.setContent(setSelectedLogin(Selection.UserPass));
-        this.selected = Selection.UserPass;
+      if (this.loginSelected == LoginSelection.SignIn) {
+        centeredBox.setContent(tickSelected(LoginSelection.SignUp, loginContent));
+        this.loginSelected = LoginSelection.SignUp;
       } else {
-        centeredBox.setContent(setSelectedLogin(Selection.Google));
-        this.selected = Selection.Google;
+        centeredBox.setContent(tickSelected(LoginSelection.SignIn, loginContent));
+        this.loginSelected = LoginSelection.SignIn;
       }
 
       this.screen.render();
@@ -65,7 +72,7 @@ class UI {
 
     centeredBox.key("enter", () => {
       elements.forEach((elem) => this.screen.remove(elem));
-      this._connectToDatabase().then(() => this._chatScreen());
+      this._connectToDatabase().then(() => this._chatRoomSelection());
     })
 
     // Focus our element.
@@ -75,12 +82,49 @@ class UI {
     this.screen.render();
   }
 
+  _chatRoomSelection() {
+    const centeredBox = customWidgets.getCenteredBox();
+
+    centeredBox.setContent(tickSelected(this.chatRoomSelected, chatRoomSelectionContent));
+
+    this.screen.append(centeredBox);
+
+    // Add functionality for selecting
+    centeredBox.key(["up", "down"], () => {
+      if (this.chatRoomSelected == ChatRoomSelection.Create) {
+        centeredBox.setContent(tickSelected(ChatRoomSelection.Join, chatRoomSelectionContent));
+        this.chatRoomSelected = ChatRoomSelection.Join;
+      } else {
+        centeredBox.setContent(tickSelected(ChatRoomSelection.Create, chatRoomSelectionContent));
+        this.chatRoomSelected = ChatRoomSelection.Create;
+      }
+
+      this.screen.render();
+    });
+
+    centeredBox.key("enter", () => {
+      this.screen.remove(centeredBox);
+      this.screen.log(this.chatRoomSelected);
+      if (this.chatRoomSelected == ChatRoomSelection.Create) {
+        database.createChatRoom(this.userId, this.userName).then((chatRoomId) => {
+          this.chatRoomId = chatRoomId;
+          this._chatScreen();
+        })
+      }
+    })
+
+    // Focus our element.
+    centeredBox.focus();
+
+    this.screen.render();
+  }
+
   _chatScreen() {
     const textBox = customWidgets.getTextBox();
     const recvMsgBox = customWidgets.getLogBox(this.screen.rows);
     const infoBar = customWidgets.getInfoBar();
 
-    infoBar.setContent(`${new Date().toISOString()}{|}Connected to chat room:`);
+    infoBar.setContent(` ${new Date().toISOString()}{|}Connected to chat room: ${this.chatRoomId}`);
 
     // Add elements to screen
     const elements = [textBox, recvMsgBox, infoBar];
@@ -95,7 +139,7 @@ class UI {
 
   _timer(topBar: blessed.Widgets.BoxElement) {
     setInterval(() => {
-      topBar.setContent(` ${new Date().toISOString()}{|}Connected to chat room: `);
+      topBar.setContent(` ${new Date().toISOString()}{|}Connected to chat room: ${this.chatRoomId} `);
       this.screen.render();
     }, 100);
   }
@@ -113,23 +157,10 @@ class UI {
         return process.exit(0);
       });
 
-      database.sendMessage("V75CE93", this.userId, value).then(() => {
+      database.sendMessage(this.chatRoomId, this.userId, value).then(() => {
         this._readInput(textBox, log);
       });
     });
-  }
-
-  start() {
-    this._loginScreen();
-  }
-
-  _connectToDatabase(): Promise<void>  {
-    return new Promise((resolve, _reject) => {
-      this._addLoadingScreen("Connecting to database...");
-      database.connectToDatabase();
-      this._killLoadingScreen();
-      resolve();
-    })
   }
 
   _addLoadingScreen(content: string) {
@@ -156,17 +187,33 @@ class UI {
     this.screen.remove(this.loadingScreenInstance);
     this.screen.render()
   }
+
+  _connectToDatabase(): Promise<void>  {
+    return new Promise((resolve, _reject) => {
+      this._addLoadingScreen("Connecting to database...");
+      database.connectToDatabase();
+      this._killLoadingScreen();
+      resolve();
+    })
+  }
+
+  _addMessage(userName: string, message: string, recvMsgBox: blessed.Widgets.Log) {
+    recvMsgBox.pushLine(`{underline}${userName}:{/} ${message}`);
+  }
 }
 
-
+const chatRoomSelectionContent = [
+  "Create a chat room",
+  "Join chat room using ID",
+]
 
 const loginContent = [
-  "Sign in with Google",
-  "Sign in with User/Pass"
+  "Sign in",
+  "Sign up"
 ];
 
-const setSelectedLogin = (selection: number) => {
-  return (loginContent.map((text, index) => index == selection ? "[*] " + text : "[ ] " + text)).join("\n");
+const tickSelected = (selection: number, content: string[]) => {
+  return (content.map((text, index) => index == selection ? "[*] " + text : "[ ] " + text)).join("\n");
 }
 
 export { UI, blessed };
