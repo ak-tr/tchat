@@ -21,6 +21,10 @@ export const getCenteredBox = () => {
     left: "center",
     width: "shrink",
     height: "shrink",
+    padding: {
+      left: 1,
+      right: 1,
+    },
     tags: true,
     border: {
       type: "line"
