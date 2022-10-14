@@ -29,6 +29,8 @@
   },
   "dependencies": {
     "@types/blessed": "^0.1.19",
-    "blessed": "^0.1.81"
+    "blessed": "^0.1.81",
+    "dotenv": "^16.0.3",
+    "mongodb": "4.10"
   }
 }
