@@ -23,7 +23,7 @@ export const createChatRoom = async (userId: string, userName: string) => {
   // Generate random chat room ID e.g. 3VQAPMYG
   const chatRoomId = generateChatRoomId();
 
-  const result = await chatRooms.insertOne({
+  await chatRooms.insertOne({
     chatRoomId,
     users: [
       {
@@ -34,7 +34,7 @@ export const createChatRoom = async (userId: string, userName: string) => {
     messages: [],
   })
 
-  console.log(`New chat room created with ID ${result.insertedId}`);
+  return chatRoomId;
 }
 
 export const sendMessage = async (chatRoomId: string, userId: string, content: string) => {
