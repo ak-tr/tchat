@@ -72,7 +72,8 @@ class UI {
 
     centeredBox.key("enter", () => {
       elements.forEach((elem) => this.screen.remove(elem));
-      this._connectToDatabase().then(() => this._chatRoomSelection());
+      database.connectToDatabase();
+      this._chatRoomSelection()
     })
 
     // Focus our element.
@@ -163,42 +164,8 @@ class UI {
     });
   }
 
-  _addLoadingScreen(content: string) {
-    this.loadingScreenInstance = customWidgets.getLoadingScreen();
-
-    const loadSequence = ['⣾','⣽','⣻','⢿','⡿','⣟','⣯','⣷'];
-    let index = 0;
-
-    setInterval(() => {
-      index += 1;
-      this.loadingScreenInstance.setContent(`{center}${content}{/center}\n${loadSequence[index].padStart(content.length / 2)}`);
-      if (index == loadSequence.length - 1) {
-        index = 0;
-      }
-      this.screen.render();
-    }, 100);
-
-    this.screen.append(this.loadingScreenInstance);
-
-    this.screen.render();
-  }
-
-  _killLoadingScreen() {
-    this.screen.remove(this.loadingScreenInstance);
-    this.screen.render()
-  }
-
-  _connectToDatabase(): Promise<void>  {
-    return new Promise((resolve, _reject) => {
-      this._addLoadingScreen("Connecting to database...");
-      database.connectToDatabase();
-      this._killLoadingScreen();
-      resolve();
-    })
-  }
-
   _addMessage(userName: string, message: string, recvMsgBox: blessed.Widgets.Log) {
-    recvMsgBox.pushLine(`{underline}${userName}:{/} ${message}`);
+    recvMsgBox.pushLine(`{inverse}${new Date().toLocaleTimeString()} → ${userName}{/}: ${message}`);
   }
 }
 

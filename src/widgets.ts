@@ -2,19 +2,6 @@ import { blessed } from "./ui";
 
 const offset = 2;
 
-export const getLoadingScreen = () => {
-  return blessed.box({
-    top: "center",
-    left: "center",
-    width: "shrink",
-    height: "shrink",
-    tags: true,
-    style: {
-      align: "center",
-    },
-  })
-}
-
 export const getCenteredBox = () => {
   return blessed.box({
     top: "center",
