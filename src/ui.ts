@@ -109,15 +109,14 @@ class UI {
       } else {
         // Ask for chat room ID to join
         const inputBox = customWidgets.getInputBox();
-        const text = customWidgets.getText("Enter chat room ID:");
+        const promptText = customWidgets.getText("Enter chat room ID:", "-3");
+        const validationText = customWidgets.getText("{red-fg}Invalid chat room ID{/}", "+3");
 
-        [inputBox, text].forEach((elem) => this.screen.append(elem));
+        [inputBox, promptText, validationText].forEach((elem) => this.screen.append(elem));
+        validationText.hide();
 
-        // Read input from box...
-        inputBox.focus();
-        inputBox.readInput((_err, value) => {
-          this.chatRoomId = value;
-        })
+        this._readInputForSelection(inputBox, validationText);
+
         this.screen.render();
       }
     })
@@ -137,7 +136,7 @@ class UI {
     [textBox, recvMsgBox, infoBar].forEach((elem) => this.screen.append(elem));
 
     // Read text input and add timer to info bar
-    this._readInput(textBox, recvMsgBox);
+    this._readInputForMessages(textBox, recvMsgBox);
     this._timer(infoBar);
 
     this.screen.render();
@@ -151,7 +150,7 @@ class UI {
     }, 100);
   }
 
-  _readInput(textBox: blessed.Widgets.TextboxElement, messageScreen: blessed.Widgets.Log) {
+  _readInputForMessages(textBox: blessed.Widgets.TextboxElement, messageScreen: blessed.Widgets.Log) {
     // Focus textbox and then call readInput function
     textBox.focus();
     textBox.readInput((_err, value) => {
@@ -159,8 +158,13 @@ class UI {
       textBox.clearValue();
 
       this._addMessage(this.user.getUserName(), value, messageScreen);
-      database.sendMessage(this.chatRoomId, this.user.getUserId(), value).then(() => {
-        this._readInput(textBox, messageScreen); // Call readInput again for next message
+      database.sendMessage(
+        this.chatRoomId,
+        this.user.getUserId(),
+        this.user.getUserName(),
+        value
+      ).then(() => {
+        this._readInputForMessages(textBox, messageScreen); // Call readInput again for next message
       });
 
       this.screen.render();
@@ -173,6 +177,43 @@ class UI {
 
 
     });
+  }
+
+  _readInputForSelection(inputBox: blessed.Widgets.TextboxElement, validationText: blessed.Widgets.TextElement) {
+    // Read input from box...
+    inputBox.focus();
+
+    inputBox.readInput((_err, value) => {
+      // Clear value on call
+      inputBox.clearValue();
+
+      // Check if chat room exists
+      database.checkIfChatRoomExists(value).then((exists) => {
+        if (!exists) { // If chat room does not exist, show error for 10 seconds
+          validationText.show();
+          this.screen.render();
+
+          setTimeout(() => {
+            validationText.hide()
+            this.screen.render();
+          }, 10000);
+
+          // Call for input again
+          this._readInputForSelection(inputBox, validationText);
+        } else {
+          this.chatRoomId = value;
+          this._chatScreen();
+        }
+      })
+
+      // Allow quit on Escape or Control-C.
+      inputBox.key(["escape", "C-c"], () => {
+        database.closeDatabase();
+        return process.exit(0);
+      });
+
+      this.screen.render();
+    })
   }
 
   _addMessage(userName: string, message: string, recvMsgBox: blessed.Widgets.Log) {
