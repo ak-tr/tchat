@@ -1,11 +1,15 @@
-import * as types from "./types";
+import { User as UserType } from "./types";
+import crypto from "crypto";
 
 class User {
   userId: string;
   userName: string;
 
-  constructor(userId: string, userName: string) {
-    this.userId = userId;
+  constructor(userName: string, userId?: string, ) {
+    // If userId is not provided, generate one
+    if (!userId) this.userId = generateRandomUserId();
+    else this.userId = userId;
+  
     this.userName = userName;
   }
 
@@ -17,12 +21,16 @@ class User {
     return this.userName;
   }
 
-  getUserDetails(): types.User {
+  getUserDetails(): UserType {
     return {
       userId: this.userId,
       userName: this.userName,
     }
   }
+}
+
+const generateRandomUserId = () => {
+  return [5, 4, 3].map((bytes) => crypto.randomBytes(bytes).toString("hex")).join("-");
 }
 
 export { User }
