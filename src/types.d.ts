@@ -11,5 +11,7 @@ interface User {
 
 interface Message {
   fromUserId: string,
+  fromUserName: string,
   content: string,
+  timestamp: number,
 }
