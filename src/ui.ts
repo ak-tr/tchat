@@ -1,23 +1,13 @@
 import blessed from "blessed";
 import * as customWidgets from "./widgets";
 import * as database from "./db";
-
-enum LoginSelection {
-  SignIn = 0,
-  SignUp = 1,
-}
-
-enum ChatRoomSelection {
-  Create = 0,
-  Join = 1,
-}
+import { User } from "./user";
 class UI {
   screen: blessed.Widgets.Screen;
   loginSelected: LoginSelection;
   chatRoomSelected: ChatRoomSelection;
-  userId: string;
-  userName: string;
   loadingScreenInstance: blessed.Widgets.BoxElement;
+  user: User;
   chatRoomId: string;
 
   constructor() {
@@ -29,19 +19,21 @@ class UI {
       log: "log.txt",
     });
     
+    // Set screen title and default selections
     this.screen.title = "Tchat";
     this.loginSelected = LoginSelection.SignIn;
     this.chatRoomSelected = ChatRoomSelection.Create;
 
-    // Quit on Escape, q, or Control-C.
+    // Allow quit on Escape, q, or Control-C.
     this.screen.key(["escape", "q", "C-c"], () => {
       return process.exit(0);
     });
     
-    this.userId = "c1kjf89";
-    this.userName = "909ak";
+    // Temporarily set a user for testing
+    this.user = new User("c1kjf89", "909ak");
   }
 
+  // Start the UI by entering login screen
   start() {
     this._loginScreen();
   }
@@ -50,7 +42,7 @@ class UI {
     // Get widget elements from exports
     const logoBox = customWidgets.getLogoBox();
     const centeredBox = customWidgets.getCenteredBox();
-
+    // Set tick on default
     centeredBox.setContent(tickSelected(this.loginSelected, loginContent));
 
     // Add elements to screen
@@ -70,22 +62,22 @@ class UI {
       this.screen.render();
     });
 
+    // Connect to database and call next step on selection
     centeredBox.key("enter", () => {
       elements.forEach((elem) => this.screen.remove(elem));
       database.connectToDatabase();
       this._chatRoomSelection()
     })
 
-    // Focus our element.
+    // Focus element.
     centeredBox.focus();
-
-    // Render the screen.
     this.screen.render();
   }
 
   _chatRoomSelection() {
+    // Get centered box
     const centeredBox = customWidgets.getCenteredBox();
-
+    // Set default selections
     centeredBox.setContent(tickSelected(this.chatRoomSelected, chatRoomSelectionContent));
 
     this.screen.append(centeredBox);
@@ -104,32 +96,45 @@ class UI {
     });
 
     centeredBox.key("enter", () => {
+      // On enter remove box
       this.screen.remove(centeredBox);
-      this.screen.log(this.chatRoomSelected);
+
+      // If create selected, create room, otherwise ask for chat room ID
       if (this.chatRoomSelected == ChatRoomSelection.Create) {
-        database.createChatRoom(this.userId, this.userName).then((chatRoomId) => {
+        // Creating new chat room...
+        database.createChatRoom(this.user.getUserId(), this.user.getUserName()).then((chatRoomId) => {
           this.chatRoomId = chatRoomId;
           this._chatScreen();
         })
+      } else {
+        // Ask for chat room ID to join
+        const inputBox = customWidgets.getInputBox();
+        const text = customWidgets.getText("Enter chat room ID:");
+
+        [inputBox, text].forEach((elem) => this.screen.append(elem));
+
+        // Read input from box...
+        inputBox.focus();
+        inputBox.readInput((_err, value) => {
+          this.chatRoomId = value;
+        })
+        this.screen.render();
       }
     })
 
     // Focus our element.
     centeredBox.focus();
-
     this.screen.render();
   }
 
   _chatScreen() {
+    // Get info bar, text box and message box
     const textBox = customWidgets.getTextBox();
     const recvMsgBox = customWidgets.getLogBox(this.screen.rows);
     const infoBar = customWidgets.getInfoBar();
 
-    infoBar.setContent(` ${new Date().toISOString()}{|}Connected to chat room: ${this.chatRoomId}`);
-
     // Add elements to screen
-    const elements = [textBox, recvMsgBox, infoBar];
-    elements.forEach((elem) => this.screen.append(elem));
+    [textBox, recvMsgBox, infoBar].forEach((elem) => this.screen.append(elem));
 
     // Read text input and add timer to info bar
     this._readInput(textBox, recvMsgBox);
@@ -139,34 +144,50 @@ class UI {
   }
 
   _timer(topBar: blessed.Widgets.BoxElement) {
+    // Update info bar every 100ms
     setInterval(() => {
       topBar.setContent(` ${new Date().toISOString()}{|}Connected to chat room: ${this.chatRoomId} `);
       this.screen.render();
     }, 100);
   }
 
-  _readInput(textBox: blessed.Widgets.TextboxElement, log: blessed.Widgets.Log) {
+  _readInput(textBox: blessed.Widgets.TextboxElement, messageScreen: blessed.Widgets.Log) {
+    // Focus textbox and then call readInput function
     textBox.focus();
     textBox.readInput((_err, value) => {
+      // On submit, clear value, add message to textbox and send to database
       textBox.clearValue();
-      this._addMessage(this.userName, value, log);
+
+      this._addMessage(this.user.getUserName(), value, messageScreen);
+      database.sendMessage(this.chatRoomId, this.user.getUserId(), value).then(() => {
+        this._readInput(textBox, messageScreen); // Call readInput again for next message
+      });
+
       this.screen.render();
 
-      // Quit on Escape, q, or Control-C.
+      // Allow quit on Escape or Control-C.
       textBox.key(["escape", "C-c"], () => {
         database.closeDatabase();
         return process.exit(0);
       });
 
-      database.sendMessage(this.chatRoomId, this.userId, value).then(() => {
-        this._readInput(textBox, log);
-      });
+
     });
   }
 
   _addMessage(userName: string, message: string, recvMsgBox: blessed.Widgets.Log) {
-    recvMsgBox.pushLine(`{inverse}${new Date().toLocaleTimeString()} → ${userName}{/}: ${message}`);
+    recvMsgBox.pushLine(`{#CECECE-fg}${new Date().toLocaleTimeString()}{/} → {#D00000-fg}${userName.padStart(15-userName.length)}{/} | ${message}`);
   }
+}
+
+enum LoginSelection {
+  SignIn = 0,
+  SignUp = 1,
+}
+
+enum ChatRoomSelection {
+  Create = 0,
+  Join = 1,
 }
 
 const chatRoomSelectionContent = [
