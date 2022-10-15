@@ -3,10 +3,15 @@ export interface ChatRoom {
   users: User[], // max 2
   messages?: Message[],
 }
-
 interface User {
   userId: string,
   userName: string,
+}
+
+interface UserInDatabase {
+  userId: string,
+  userName: string,
+  password: string,
 }
 
 interface Message {
