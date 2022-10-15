@@ -2,13 +2,14 @@ import { blessed } from "./ui";
 
 const offset = 2;
 
-export const getText = (content: string) => {
+export const getText = (content: string, offset: string) => {
   return blessed.text({
-    top: "50%-3",
+    top: `50%${offset}`,
     left: "center",
     align: "center",
     height: 2,
     width: "shrink",
+    tags: true,
     content,
   })
 }
