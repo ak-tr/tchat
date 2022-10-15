@@ -37,10 +37,14 @@ export const createChatRoom = async (userId: string, userName: string) => {
   return chatRoomId;
 }
 
-export const sendMessage = async (chatRoomId: string, userId: string, content: string) => {
+export const checkIfChatRoomExists = async (chatRoomId: string) => {
+  return !!(await chatRooms.count({ chatRoomId }, { limit: 1 }))
+}
+
+export const sendMessage = async (chatRoomId: string, userId: string, userName: string, content: string) => {
   const result = await chatRooms.updateOne(
     { chatRoomId },
-    { $push: { "messages": { fromUserId: userId, content } } }
+    { $push: { "messages": { fromUserId: userId, fromUserName: userName, content, timestamp: new Date().getTime() } } }
   )
   
   return result.modifiedCount >= 1;;
