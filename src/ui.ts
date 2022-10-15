@@ -2,12 +2,18 @@ import blessed from "blessed";
 import * as customWidgets from "./widgets";
 import * as database from "./db";
 import { User } from "./user";
+
 class UI {
   screen: blessed.Widgets.Screen;
+
   loginSelected: LoginSelection;
   chatRoomSelected: ChatRoomSelection;
+  userPassSelected: UserPassSelection;
   loadingScreenInstance: blessed.Widgets.BoxElement;
+
   user: User;
+  userNameValue: string;
+  userPassValue: string;
   chatRoomId: string;
 
   constructor() {
@@ -23,6 +29,7 @@ class UI {
     this.screen.title = "Tchat";
     this.loginSelected = LoginSelection.SignIn;
     this.chatRoomSelected = ChatRoomSelection.Create;
+    this.userPassSelected = UserPassSelection.User;
 
     // Allow quit on Escape, q, or Control-C.
     this.screen.key(["escape", "q", "C-c"], () => {
@@ -30,7 +37,7 @@ class UI {
     });
     
     // Temporarily set a user for testing
-    this.user = new User("c1kjf89", "909ak");
+    this.user = new User("909ak", "c1kjf89");
   }
 
   // Start the UI by entering login screen
@@ -66,11 +73,106 @@ class UI {
     centeredBox.key("enter", () => {
       elements.forEach((elem) => this.screen.remove(elem));
       database.connectToDatabase();
-      this._chatRoomSelection()
+      this._userPassScreen();
+      // this._chatRoomSelection()
     })
 
     // Focus element.
     centeredBox.focus();
+    this.screen.render();
+  }
+
+  _userPassScreen() {
+    const text = customWidgets.getText(
+      "Enter your username and password\nUse {#ff0000-fg}TAB key{/} to go to next input box\nPress {#00ff00-fg}ENTER{/} to proceed",
+      "-6",
+      1
+    );
+    const usernameInput = customWidgets.getInputBox("-2", 35, "Username");
+    const passwordInput = customWidgets.getInputBox("+1", 35, "Password", true);
+    const validationText = customWidgets.getText("{red-fg}{/}", "+5");
+
+    const widgets = [text, usernameInput, passwordInput, validationText]
+    widgets.forEach((elem) => this.screen.append(elem));
+    
+    validationText.hide();
+    const inputBoxes = [usernameInput, passwordInput];
+
+    inputBoxes.forEach((box) => {
+      box.key("tab", () => {
+        inputBoxes[this.userPassSelected].submit();
+        if (this.userPassSelected == UserPassSelection.User) {
+          this.userPassSelected = UserPassSelection.Pass;
+        } else {
+          this.userPassSelected = UserPassSelection.User;
+        }
+        inputBoxes[this.userPassSelected].focus();
+        this._readInputForUserPass(inputBoxes[this.userPassSelected]);
+      })
+
+      box.key("enter", () => {
+        if (this.userPassSelected == UserPassSelection.User) {
+          return
+        }
+
+        const resetValidationText = (ms: number) => {
+          setInterval(() => {
+            validationText.hide();
+            this.screen.render();
+          }, ms);
+        }
+
+        const showValidationError = (message: string) => {
+          validationText.setContent(`{red-fg}${message}{/}`);
+          validationText.show();
+          this.screen.render();
+          return resetValidationText(5000);
+        }
+
+        const showSuccessMessage = (message: string) => {
+          validationText.setContent(`{green-fg}${message}{/}`);
+          validationText.show();
+          this.screen.render();
+        }
+
+        inputBoxes[this.userPassSelected].submit();
+        if (this.userNameValue.length <= 4 || this.userPassValue.length <= 4) {
+          return showValidationError("Username or password must be longer than 4 characters.");
+        }
+
+        if (this.loginSelected == LoginSelection.SignUp) {
+          this.user = new User(this.userNameValue);
+          database.userSignUp(this.user, this.userPassValue).then((result) => {
+            if (!result) {
+              return showValidationError("Username already exists.\nPlease try with a different username.");
+            } else {
+              showSuccessMessage("You have successfully signed up!")
+              setTimeout(() => {
+                widgets.forEach((elem) => this.screen.remove(elem));
+                this._chatRoomSelection();
+              }, 1500);
+            }
+          })
+        } else {
+          database.userSignIn(this.userNameValue, this.userPassValue).then((result) => {
+            if (result == null) {
+              showValidationError("Username or password is wrong. Please try again.");
+            } else {
+              showSuccessMessage("You have successfully logged in!")
+              this.user = new User(result.userName, result.userId);
+              setTimeout(() => {
+                widgets.forEach((elem) => this.screen.remove(elem));
+                this._chatRoomSelection();
+              }, 1500);
+            }
+          })
+        }
+      })
+    })
+
+    this._readInputForUserPass(usernameInput);
+
+
     this.screen.render();
   }
 
@@ -102,13 +204,13 @@ class UI {
       // If create selected, create room, otherwise ask for chat room ID
       if (this.chatRoomSelected == ChatRoomSelection.Create) {
         // Creating new chat room...
-        database.createChatRoom(this.user.getUserId(), this.user.getUserName()).then((chatRoomId) => {
+        database.createChatRoom(this.user).then((chatRoomId) => {
           this.chatRoomId = chatRoomId;
           this._chatScreen();
         })
       } else {
         // Ask for chat room ID to join
-        const inputBox = customWidgets.getInputBox();
+        const inputBox = customWidgets.getInputBox("-1");
         const promptText = customWidgets.getText("Enter chat room ID:", "-3");
         const validationText = customWidgets.getText("{red-fg}Invalid chat room ID{/}", "+3");
 
@@ -160,8 +262,7 @@ class UI {
       this._addMessage(this.user.getUserName(), value, messageScreen);
       database.sendMessage(
         this.chatRoomId,
-        this.user.getUserId(),
-        this.user.getUserName(),
+        this.user,
         value
       ).then(() => {
         this._readInputForMessages(textBox, messageScreen); // Call readInput again for next message
@@ -184,13 +285,12 @@ class UI {
     inputBox.focus();
 
     inputBox.readInput((_err, value) => {
-      // Clear value on call
-      inputBox.clearValue();
-
       // Check if chat room exists
       database.checkIfChatRoomExists(value).then((exists) => {
         if (!exists) { // If chat room does not exist, show error for 10 seconds
           validationText.show();
+          // Clear value on validation
+          inputBox.clearValue();
           this.screen.render();
 
           setTimeout(() => {
@@ -202,7 +302,9 @@ class UI {
           this._readInputForSelection(inputBox, validationText);
         } else {
           this.chatRoomId = value;
-          this._chatScreen();
+          database.addUserToChatRoom(this.user, value).then(() => {
+            this._chatScreen();
+          })
         }
       })
 
@@ -216,8 +318,23 @@ class UI {
     })
   }
 
+  _readInputForUserPass(inputBox: blessed.Widgets.TextboxElement) {
+    inputBox.focus();
+
+    inputBox.readInput((_err, value) => {
+      if (this.userPassSelected == UserPassSelection.User) this.userNameValue = value.trim();
+      else this.userPassValue = value.trim();
+
+      // Allow quit on Escape or Control-C.
+      inputBox.key(["escape", "C-c"], () => {
+        database.closeDatabase();
+        return process.exit(0);
+      });
+    })
+  }
+
   _addMessage(userName: string, message: string, recvMsgBox: blessed.Widgets.Log) {
-    recvMsgBox.pushLine(`{#CECECE-fg}${new Date().toLocaleTimeString()}{/} → {#D00000-fg}${userName.padStart(15-userName.length)}{/} | ${message}`);
+    recvMsgBox.pushLine(`{#CECECE-fg}${new Date().toLocaleTimeString()}{/} → {#D00000-fg}${userName.padStart(10)}{/} | ${message}`);
   }
 }
 
@@ -229,6 +346,11 @@ enum LoginSelection {
 enum ChatRoomSelection {
   Create = 0,
   Join = 1,
+}
+
+enum UserPassSelection {
+  User = 0,
+  Pass = 1,
 }
 
 const chatRoomSelectionContent = [
