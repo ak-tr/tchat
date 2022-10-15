@@ -2,24 +2,30 @@ import { blessed } from "./ui";
 
 const offset = 2;
 
-export const getText = (content: string, offset: string) => {
+export const getText = (content: string, offset: string, extraHeight?: number) => {
   return blessed.text({
     top: `50%${offset}`,
     left: "center",
     align: "center",
-    height: 2,
+    height: 2 + (extraHeight ?? 0),
     width: "shrink",
     tags: true,
     content,
+    style: {
+      align: "center"
+    }
   })
 }
 
-export const getInputBox = () => {
+export const getInputBox = (offset?: string, width?: number, label?: string, censor?: boolean) => {
   return blessed.textbox({
-    top: "center",
+    top: `50%${offset ?? ""}`,
     left: "center",
-    height: 3,
-    width: 15,
+    height: label ? 3 : 3,
+    width: width ?? 15,
+    label,
+    tags: true,
+    censor,
     padding: {
       left: 1,
       right: 1,
