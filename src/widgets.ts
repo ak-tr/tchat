@@ -2,6 +2,33 @@ import { blessed } from "./ui";
 
 const offset = 2;
 
+export const getText = (content: string) => {
+  return blessed.text({
+    top: "50%-3",
+    left: "center",
+    align: "center",
+    height: 2,
+    width: "shrink",
+    content,
+  })
+}
+
+export const getInputBox = () => {
+  return blessed.textbox({
+    top: "center",
+    left: "center",
+    height: 3,
+    width: 15,
+    padding: {
+      left: 1,
+      right: 1,
+    },
+    border: {
+      type: "line"
+    },
+  });
+}
+
 export const getCenteredBox = () => {
   return blessed.box({
     top: "center",
