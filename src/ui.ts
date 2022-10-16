@@ -241,6 +241,23 @@ class UI {
     this._readInputForMessages(textBox, recvMsgBox);
     this._timer(infoBar);
 
+    database.messageListener(this.chatRoomId).on("change", (next) => {
+      // Get new message from changeStream
+      const newMessage = Object.values(next.updateDescription.updatedFields)[0];
+      // Parse fields
+      const { fromUserName, fromUserId, content, timestamp } = newMessage;
+      // Check if we made the update?
+      const outbound = fromUserId == this.user.getUserId() ? true : false;
+      // Add to message box
+      this._addMessage(
+        fromUserName,
+        content,
+        timestamp,
+        outbound,
+        recvMsgBox,
+      )
+    })
+
     this.screen.render();
   }
 
@@ -259,7 +276,7 @@ class UI {
       // On submit, clear value, add message to textbox and send to database
       textBox.clearValue();
 
-      this._addMessage(this.user.getUserName(), value, messageScreen);
+      // this._addMessage(this.user.getUserName(), value, messageScreen);
       database.sendMessage(
         this.chatRoomId,
         this.user,
@@ -333,8 +350,10 @@ class UI {
     })
   }
 
-  _addMessage(userName: string, message: string, recvMsgBox: blessed.Widgets.Log) {
-    recvMsgBox.pushLine(`{#CECECE-fg}${new Date().toLocaleTimeString()}{/} → {#D00000-fg}${userName.padStart(10)}{/} | ${message}`);
+  _addMessage(userName: string, message: string, timestamp: number, outbound: boolean, recvMsgBox: blessed.Widgets.Log) {
+    recvMsgBox.pushLine(
+      `{#CECECE-fg}${new Date(timestamp).toLocaleTimeString()}{/} ${outbound ? "→" : "←"} {#D00000-fg}${userName.padStart(10)}{/} | ${message}`
+    );
   }
 }
 
