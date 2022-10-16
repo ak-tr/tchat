@@ -1,6 +1,6 @@
 import { MongoClient } from "mongodb";
-import { Db, Collection } from "mongodb/mongodb";
-import { ChatRoom } from "./types";
+import { Db, Collection, ChangeStreamUpdateDocument, ChangeStream } from "mongodb/mongodb";
+import { ChatRoom, Message } from "./types";
 import { User } from "./user";
 import { UserInDatabase } from "./types"
 import crypto from "crypto";
@@ -12,7 +12,8 @@ dotenv.config();
 let client: MongoClient;
 let database: Db;
 let chatRooms: Collection<ChatRoom>;
-let users: Collection<UserInDatabase>
+let users: Collection<UserInDatabase>;
+let changeStream: ChangeStream<ChatRoom, ChangeStreamUpdateDocument<Record<string, Message>>>;
 
 export const connectToDatabase = () => {
   client = new MongoClient(process.env.CONN_STRING);
@@ -86,6 +87,13 @@ export const userSignIn = async (userName: string, password: string) => {
   return result;
 }
 
+export const messageListener = (chatRoomId: string) => {
+  const pipeline = [ { $match: { "fullDocument.chatRoomId": chatRoomId } } ];
+  changeStream = chatRooms.watch<ChatRoom, ChangeStreamUpdateDocument<Record<string, Message>>>(pipeline, { fullDocument: "updateLookup" });
+  
+  return changeStream;
+}
+
 export const sendMessage = async (chatRoomId: string, user: User, content: string) => {
   const { userId, userName } = user.getUserDetails();
 
@@ -98,6 +106,7 @@ export const sendMessage = async (chatRoomId: string, user: User, content: strin
 }
 
 export const closeDatabase = () => {
+  changeStream.close();
   client.close();
 }
 
