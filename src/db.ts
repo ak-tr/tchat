@@ -28,16 +28,18 @@ export const createChatRoom = async (user: User) => {
   const chatRoomId = generateChatRoomId();
   const { userId, userName } = user.getUserDetails();
 
-  await chatRooms.insertOne({
-    chatRoomId,
-    users: [
-      {
-        userId,
-        userName,
-      }
-    ],
-    messages: [],
-  })
+  await chatRooms.insertOne(
+    {
+      chatRoomId,
+      users: [
+        {
+          userId,
+          userName,
+        }
+      ],
+      messages: [],
+    }
+  );
 
   return chatRoomId;
 }
@@ -46,11 +48,25 @@ export const checkIfChatRoomExists = async (chatRoomId: string) => {
   return !!(await chatRooms.count({ chatRoomId }, { limit: 1 }))
 }
 
+export const getChatRoomDetails = async (chatRoomId: string) => {
+  const result = await chatRooms.findOne(
+    { chatRoomId }
+  )
+
+  return result;
+}
+
 export const addUserToChatRoom = async (user: User, chatRoomId: string) => {
   const result = await chatRooms.updateOne(
-    { chatRoomId },
-    { $addToSet: { users: user.getUserDetails() } }
-  )
+    {
+      chatRoomId 
+    },
+    { 
+      $addToSet: { 
+          users: user.getUserDetails() 
+        } 
+    }
+  );
 
   return result.modifiedCount >= 1;
 }
@@ -88,7 +104,19 @@ export const userSignIn = async (userName: string, password: string) => {
 }
 
 export const messageListener = (chatRoomId: string) => {
-  const pipeline = [ { $match: { "fullDocument.chatRoomId": chatRoomId } } ];
+  const pipeline = [
+    { 
+      $match: { 
+          "fullDocument.chatRoomId": chatRoomId 
+        } 
+    },
+    {
+      $project: {
+        "fullDocument.messages": false,
+        "fullDocument.users": false,
+      }
+    }
+  ];
   changeStream = chatRooms.watch<ChatRoom, ChangeStreamUpdateDocument<Record<string, Message>>>(pipeline, { fullDocument: "updateLookup" });
   
   return changeStream;
@@ -99,7 +127,15 @@ export const sendMessage = async (chatRoomId: string, user: User, content: strin
 
   const result = await chatRooms.updateOne(
     { chatRoomId },
-    { $push: { "messages": { fromUserId: userId, fromUserName: userName, content, timestamp: new Date().getTime() } } }
+    { $push: { 
+        "messages": { 
+          fromUserId: userId,
+          fromUserName: userName,
+          content, 
+          timestamp: new Date().getTime() 
+        } 
+      } 
+    }
   )
   
   return result.modifiedCount >= 1;;
