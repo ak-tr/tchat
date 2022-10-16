@@ -241,11 +241,38 @@ class UI {
     this._readInputForMessages(textBox, recvMsgBox);
     this._timer(infoBar);
 
+    database.getChatRoomDetails(this.chatRoomId).then((details) => {
+      const toSlice = details.messages.length >= 50 ? 50 : details.messages.length;
+      // Add last 15 messages to chat box
+      details.messages.slice(-toSlice).forEach((message) => {
+        this._addMessage(
+          message.fromUserName,
+          message.content,
+          message.timestamp,
+          message.fromUserId == this.user.getUserId() ? true : false,
+          recvMsgBox,
+        )
+      })
+      this._addSystemMessage("Retrieved message history", recvMsgBox);
+    })
+
     database.messageListener(this.chatRoomId).on("change", (next) => {
+      // Ignore if change doesn't have any update fields
+      // Shouldn't ever hit but you never know...
+      if (!next?.updateDescription?.updatedFields) {
+        return;
+      }
+
       // Get new message from changeStream
       const newMessage = Object.values(next.updateDescription.updatedFields)[0];
       // Parse fields
       const { fromUserName, fromUserId, content, timestamp } = newMessage;
+
+      // Guard clause for non existent props
+      if (!(fromUserName || fromUserId || content || timestamp)) {
+        return;
+      }
+
       // Check if we made the update?
       const outbound = fromUserId == this.user.getUserId() ? true : false;
       // Add to message box
@@ -353,6 +380,12 @@ class UI {
   _addMessage(userName: string, message: string, timestamp: number, outbound: boolean, recvMsgBox: blessed.Widgets.Log) {
     recvMsgBox.pushLine(
       `{#CECECE-fg}${new Date(timestamp).toLocaleTimeString()}{/} ${outbound ? "→" : "←"} {#D00000-fg}${userName.padStart(10)}{/} | ${message}`
+    );
+  }
+
+  _addSystemMessage(message: string, recvMsgBox: blessed.Widgets.Log) {
+    recvMsgBox.pushLine(
+      `{#CECECE-fg}${new Date().toLocaleTimeString()}{/} ← {white-fg}${"System".padStart(10)}{/} | ${message}`
     );
   }
 }
