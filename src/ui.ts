@@ -2,6 +2,7 @@ import blessed from "blessed";
 import * as customWidgets from "./widgets";
 import * as database from "./db";
 import { User } from "./user";
+import { AssignedColours, TerminalColours } from "./types";
 
 class UI {
   screen: blessed.Widgets.Screen;
@@ -15,6 +16,9 @@ class UI {
   userNameValue: string;
   userPassValue: string;
   chatRoomId: string;
+
+  availableColours: TerminalColours[];
+  assignedColours: AssignedColours[];
 
   constructor() {
     // Create a screen object.
@@ -38,6 +42,9 @@ class UI {
     
     // Temporarily set a user for testing
     this.user = new User("909ak", "c1kjf89");
+
+    this.availableColours = getDefaultColours();
+    this.assignedColours = [];
   }
 
   // Start the UI by entering login screen
@@ -256,6 +263,8 @@ class UI {
       this._addSystemMessage("Retrieved message history", recvMsgBox);
     })
 
+    this.screen.log(this.assignedColours);
+
     database.messageListener(this.chatRoomId).on("change", (next) => {
       // Ignore if change doesn't have any update fields
       // Shouldn't ever hit but you never know...
@@ -377,9 +386,28 @@ class UI {
     })
   }
 
+  _getUserColour(userName: string) {
+    const result = this.assignedColours.find((object) => object.userName == userName);
+    this.screen.log(result);
+    if (result) {
+      return result.assignedColour
+    }
+
+    if (this.availableColours.length == 0) {
+      this.availableColours = getDefaultColours();
+    }
+    
+    const assignedColour = this.availableColours.pop();
+    this.assignedColours.push({
+      userName,
+      assignedColour,
+    })
+    return assignedColour;
+  }
+
   _addMessage(userName: string, message: string, timestamp: number, outbound: boolean, recvMsgBox: blessed.Widgets.Log) {
     recvMsgBox.pushLine(
-      `{#CECECE-fg}${new Date(timestamp).toLocaleTimeString()}{/} ${outbound ? "→" : "←"} {#D00000-fg}${userName.padStart(10)}{/} | ${message}`
+      `{#CECECE-fg}${new Date(timestamp).toLocaleTimeString()}{/} ${outbound ? "→" : "←"} {${this._getUserColour(userName)}-fg}${userName.padStart(10)}{/} | ${message}`
     );
   }
 
@@ -418,5 +446,7 @@ const loginContent = [
 const tickSelected = (selection: number, content: string[]) => {
   return (content.map((text, index) => index == selection ? "[*] " + text : "[ ] " + text)).join("\n");
 }
+
+const getDefaultColours = (): TerminalColours[] => ["blue", "green", "yellow", "cyan", "magenta", "red"];
 
 export { UI, blessed };
