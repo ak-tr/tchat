@@ -3,6 +3,14 @@ export interface ChatRoom {
   users: User[], // max 2
   messages?: Message[],
 }
+
+export type TerminalColours = "blue" | "green" | "yellow" | "cyan" | "magenta" | "red";
+
+
+export interface AssignedColours {
+  userName: string,
+  assignedColour: string,
+}
 interface User {
   userId: string,
   userName: string,
